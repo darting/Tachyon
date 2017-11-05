@@ -1,0 +1,23 @@
+﻿type project
+title
+    Tachyon
+owners
+    Bartosz Sypytkowski
+authors 
+    Bartosz Sypytkowski
+projectUrl
+    https://github.com/Horusiath/Tachyon
+iconUrl
+    https://raw.githubusercontent.com/Horusiath/Tachyon/master/docs/files/img/logo.png
+licenseUrl
+    https://github.com/Horusiath/Tachyon/blob/master/LICENSE.txt
+requireLicenseAcceptance
+    false
+copyright
+    Copyright 2017
+tags
+    actor reactive distributed-systems crdt streams
+summary
+    Distributed reactive actor model framework for .NET.
+description
+    Actor programming framework for building distributed systems in reactive and non-blocking fashion.

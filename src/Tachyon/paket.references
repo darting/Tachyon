@@ -1,0 +1,4 @@
+FSharp.Core
+Reactive.Streams
+System.ValueTuple
+System.Threading.Tasks.Extensions

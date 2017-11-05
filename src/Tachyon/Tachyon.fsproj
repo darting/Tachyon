@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="Prolog.fs" />
+    <Compile Include="Schedulers.fs" />
+    <Compile Include="Actors.fs" />
+    <Compile Include="Networking.fs" />
+    <Compile Include="Membership.fs" />
+    <Compile Include="Streams.fs" />
+    <Compile Include="Persistence.fs" />
+    <Compile Include="Broadcasting.fs" />
+    <Compile Include="CmRDT.fs" />
+    <Compile Include="CvRDT.fs" />
+    <Compile Include="IO.fs" />
+    <Compile Include="Tcp.fs" />
+    <Compile Include="Tls.fs" />
+    <Compile Include="Udp.fs" />
+    <Compile Include="Runtime.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="paket.references" />
+    <None Include="paket.template" />
+    <None Include="Script.fsx" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Tachyon.Core\Tachyon.Core.csproj" />
+  </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+</Project>
