@@ -10,15 +10,11 @@ using System.Threading;
 
 namespace Tachyon.Core.Atomic
 {
-    public sealed class AtomicInt
+    public struct AtomicInt : IAtomic<int>
     {
         private int value;
 
-        public int Value
-        {
-            get => Volatile.Read(ref value);
-            set => Volatile.Write(ref this.value, value);
-        }
+        public int Value => Volatile.Read(ref value);
 
         public AtomicInt(int value)
         {
@@ -26,6 +22,7 @@ namespace Tachyon.Core.Atomic
         }
 
         public int CompareExchange(int v, int expected) => Interlocked.CompareExchange(ref this.value, v, expected);
+        public int Swap(int value) => Interlocked.Exchange(ref this.value, value);
 
         public int Increment() => Interlocked.Increment(ref value);
         public int Decrement() => Interlocked.Decrement(ref value);
