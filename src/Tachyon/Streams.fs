@@ -3,6 +3,12 @@
 open System
 open Reactive.Streams
 
+[<Struct>]
+type internal Signal<'T> =
+    | Next of value:'T
+    | Error of error:exn
+    | Complete
+
 type Sink<'I, 'Effect>() =
     interface ISubscriber<'I> with
         member this.OnComplete() = raise (System.NotImplementedException())
