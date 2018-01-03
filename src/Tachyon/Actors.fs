@@ -30,11 +30,14 @@ and Behavior<'S, 'M> =
 and [<Interface>] ICell<'S,'M> =
     abstract member Self: IRef<'M>
     abstract member Runtime: IActorRuntime
-    abstract member Spawn: (Behavior<'S,'M>) -> IRef<'M>        
+    abstract member Spawn: (Behavior<'S,'M>) -> IRef<'M>
+    
+and [<Interface>] IScheduler =
+    abstract member ScheduleTask: (unit -> Task) -> unit      
 
 and [<Interface>] IActorRuntime =
     inherit IAsyncDisposable
-    abstract member Scheduler: TaskScheduler
+    abstract member Scheduler: IScheduler
     abstract member Timer: ITimer
     abstract member Spawn: (Behavior<'S,'M>) -> IRef<'M>
     

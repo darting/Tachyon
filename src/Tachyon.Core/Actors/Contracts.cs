@@ -41,7 +41,6 @@ namespace Tachyon.Actors
     public interface IRef<in M> : IAddressable
     {
         void Send(M message);
-        IRef<N> Narrow<N>() where N : M;
     }
     
     public interface ITimer : IDisposable

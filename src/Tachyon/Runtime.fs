@@ -57,28 +57,64 @@ type internal DefaultTimer() =
                 disposables |> Seq.iter (fun d -> d.Dispose())
                 disposables.Clear()
 
+[<RequireQualifiedAccess>]
+module internal CellStatus =
+    
+    [<Literal>] 
+    let Uninitialized = 0
+    
+    [<Literal>] 
+    let Idle = 1
+    
+    [<Literal>] 
+    let Busy = 2
+
+
 [<Sealed>]
-type internal Cell<'S,'M> (runtime: IActorRuntime, signals: BoundedQueue<ISignal>, messages: UnboundedQueue<'M>, init:Behavior<'S,'M>) as this =
+type internal LocalRef<'S, 'M > (cell: Cell<'S,'M>) =
+    interface IRef<'M> with
+        member this.Send(message: 'M): unit = cell.PostMessage (message)
+        member this.Send(signal: ISignal): unit = cell.PostSignal (signal)
+
+and [<Sealed>] internal Cell<'S,'M> (runtime: IActorRuntime, signals: BoundedQueue<ISignal>, messages: UnboundedQueue<'M>, init:Behavior<'S,'M>) as this =
     let mutable status = 0
     let mutable current = Unchecked.defaultof<Behavior<'S,'M>>
+    let mutable self = LocalRef(this)
     do
+        Interlocked.Exchange(&status, CellStatus.Idle) |> ignore
         current <-
             match init with
             | Deferred (callback) -> callback(this)
             | other -> other
+    member this.RunAsync (): Task = upcast Task.FromResult()
+    member this.PostSignal(signal: ISignal): unit = 
+        if signals.TryPush(&signal)
+        then
+            runtime.Scheduler.ScheduleTask(this.RunAsync)
+
+    member this.PostMessage(message: 'M) = 
+        if messages.TryPush(message)
+        then
+            runtime.Scheduler.ScheduleTask(this.RunAsync)
     interface ICell<'S,'M> with
         member this.Runtime = runtime
-        member this.Self = raise (System.NotImplementedException())
-        member this.Spawn(behavior) = raise (System.NotImplementedException())
+        member this.Self = upcast self
+        member this.Spawn(behavior) = runtime.Spawn(behavior)
     interface IAsyncDisposable with
         member this.Dispose(): unit = 
             raise (System.NotImplementedException())
         member this.DisposeAsync(token: CancellationToken): Task = 
             raise (System.NotImplementedException())
-
+            
 [<Sealed>]
-type internal ActorRuntime() as this =
+type ActorTaskScheduler() =
+    let factory = Task.Factory
+    interface IScheduler with
+        member this.ScheduleTask(fn: unit -> Task): unit = Task.Run(Func<Task>(fn), CancellationToken.None) |> ignore
+
+and [<Sealed>] internal ActorRuntime() as this =
     let timer: ITimer = upcast new DefaultTimer()
+    let scheduler: IScheduler = upcast ActorTaskScheduler()
     let actors = HashedConcurrentDictionary(null)
     member this.DisposeAsync(token: CancellationToken) =
         timer.Dispose()
@@ -86,7 +122,7 @@ type internal ActorRuntime() as this =
     interface IActorRuntime with
         member this.Dispose() = this.DisposeAsync(CancellationToken.None).Wait 10000 |> ignore
         member this.DisposeAsync(token) = this.DisposeAsync(token)
-        member this.Scheduler = Tasks.Task.Factory.Scheduler
+        member this.Scheduler = scheduler
         member this.Spawn(behavior) = failwith "NotImplemented"
         member this.Timer = timer
     
