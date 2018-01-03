@@ -5,7 +5,7 @@
 //  </copyright>
 // -----------------------------------------------------------------------
 #endregion
-namespace Tachyon.Actor.Mailbox
+namespace Tachyon.Actors.Mailbox
 {
     public interface IMailboxQueue<T>
     {

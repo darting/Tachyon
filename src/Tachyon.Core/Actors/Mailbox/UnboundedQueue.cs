@@ -8,9 +8,9 @@
 
 using System.Collections.Concurrent;
 
-namespace Tachyon.Actor.Mailbox
+namespace Tachyon.Actors.Mailbox
 {
-    internal sealed class UnboundedQueue<T> : IMailboxQueue<T>
+    public sealed class UnboundedQueue<T> : IMailboxQueue<T>
     {
         private readonly ConcurrentQueue<T> inner = new ConcurrentQueue<T>();
 

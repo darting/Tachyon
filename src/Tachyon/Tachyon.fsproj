@@ -5,8 +5,9 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
-    <Compile Include="Atoms.fs" />
     <Compile Include="Prolog.fs" />
+    <Compile Include="Tasks.fs" />
+    <Compile Include="Atoms.fs" />
     <Compile Include="Schedulers.fs" />
     <Compile Include="Actors.fs" />
     <Compile Include="Networking.fs" />

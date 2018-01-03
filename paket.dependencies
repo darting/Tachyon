@@ -1,7 +1,7 @@
-framework: >= netstandard2.0
+framework: >= netstandard2.0, netcoreapp2.0
 source https://nuget.org/api/v2
 
-nuget Expecto
+nuget BenchmarkDotNet
 nuget FSharp.Core
 nuget Grpc
 nuget Reactive.Streams
@@ -18,4 +18,10 @@ group Build
 
 group Test
   source https://nuget.org/api/v2
+
+  nuget Unquote
+  nuget xunit 2.3.1
+  nuget xunit.runner.visualstudio 2.3.1
+  nuget Microsoft.NET.Test.Sdk 15.5.0
+  clitool dotnet-xunit 2.3.1
   

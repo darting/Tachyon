@@ -28,10 +28,10 @@ using System;
 using System.Runtime.InteropServices;
 using System.Threading;
 
-namespace Tachyon.Actor.Mailbox
+namespace Tachyon.Actors.Mailbox
 {
     [StructLayout(LayoutKind.Explicit, Size = 192, CharSet = CharSet.Ansi)]
-    internal sealed class BoundedQueue<T> : IMailboxQueue<T> where T : class
+    public sealed class BoundedQueue<T> : IMailboxQueue<T> where T : class
     {
         [FieldOffset(0)]
         private readonly Cell[] buffer;

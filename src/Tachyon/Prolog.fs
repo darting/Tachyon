@@ -31,3 +31,10 @@ type Version =
 type Versioned<'T> =
     { Value: 'T
       Version: Version }
+
+module Option =
+
+    let orElse (value: 'a) = function Some a -> a | None -> value
+    let orElseLazy (valueFn: unit -> 'a) = function Some a -> a | None -> valueFn ()
+    
+    
