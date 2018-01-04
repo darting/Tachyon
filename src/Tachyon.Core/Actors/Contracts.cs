@@ -48,4 +48,9 @@ namespace Tachyon.Actors
         void Schedule<M>(TimeSpan delay, IRef<M> target, M message, CancellationToken token = default(CancellationToken));
         void Schedule<M>(TimeSpan delay, TimeSpan interval, IRef<M> target, M message, CancellationToken token = default(CancellationToken));
     }
+
+    public interface ICell : IAsyncDisposable
+    {
+        
+    }
 }

@@ -32,9 +32,13 @@ type Versioned<'T> =
     { Value: 'T
       Version: Version }
 
+[<RequireQualifiedAccess>]
 module Option =
 
     let orElse (value: 'a) = function Some a -> a | None -> value
     let orElseLazy (valueFn: unit -> 'a) = function Some a -> a | None -> valueFn ()
-    
-    
+
+[<AutoOpen>]
+module Prolog =
+    let inline dispose (d: #IDisposable) = d.Dispose()
+    let inline disposeAsync token (d: #IAsyncDisposable) = d.DisposeAsync(token)

@@ -20,3 +20,6 @@ let inline (!) (atom: #IAtomic<_>) = atom.Value
 
 /// Swaps current atomic cell value with the provided one, returning old one as a result.
 let inline (:=) (atom: #IAtomic<_>) (value) = atom.Swap(value)
+
+/// A custom ternary operator used for CompareExchange semantics
+let inline (?<-) (atom: #IAtomic<'a>) (cond: 'a, value: 'a): 'a = atom.CompareExchange(value, cond) 

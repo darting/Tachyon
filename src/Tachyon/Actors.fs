@@ -7,12 +7,25 @@ open System.Threading
 
 type NodeId = int
 
+// SIGNALS
+type Activated = Activated interface ISignal
+type Deactivated = Deactivated of cause:exn option interface ISignal
+type Kill = Kill interface ISignal
+
 [<AutoOpen>]
 module ActorOperators =
     let inline (<!) (ref: IRef<'M>) (msg: 'M) = ref.Send(msg)
-
-[<Struct>]
-type ActorId = { NodeId: NodeId; ActorId: int }
+    
+    let (|Activated|_|) (signal: ISignal) = if signal :? Activated then Some () else None
+    let (|Deactivated|_|) (signal: ISignal) = 
+        match signal with
+        | :? Deactivated as d -> 
+            let (Deactivated(cause)) = d
+            Some cause
+        | _ -> None
+    let (|Kill|_|) (signal: ISignal) = if signal :? Kill then Some () else None
+    
+type ActorId = Int32
 
 type Receive<'S,'M> = ICell<'S,'M> -> 'S -> 'M -> System.Threading.Tasks.ValueTask<Behavior<'S,'M>>
 and  Signalize<'S,'M> = ICell<'S,'M> -> 'S -> ISignal -> System.Threading.Tasks.ValueTask<Behavior<'S,'M>>
@@ -30,7 +43,7 @@ and Behavior<'S, 'M> =
 and [<Interface>] ICell<'S,'M> =
     abstract member Self: IRef<'M>
     abstract member Runtime: IActorRuntime
-    abstract member Spawn: (Behavior<'S,'M>) -> IRef<'M>
+    abstract member Spawn: Behavior<'S,'M> * string -> IRef<'M>
     
 and [<Interface>] IScheduler =
     abstract member ScheduleTask: (unit -> Task) -> unit      
@@ -39,13 +52,9 @@ and [<Interface>] IActorRuntime =
     inherit IAsyncDisposable
     abstract member Scheduler: IScheduler
     abstract member Timer: ITimer
-    abstract member Spawn: (Behavior<'S,'M>) -> IRef<'M>
+    abstract member Spawn: Behavior<'S,'M> * string -> IRef<'M>
     abstract member DeadLetter: 'M -> unit
-
-// SIGNALS
-type Activated = Activated interface ISignal
-type Deactivated = Deactivated of exn option interface ISignal
-    
+        
 [<RequireQualifiedAccess>]
 module Actor =
 
@@ -70,6 +79,8 @@ module Actor =
         
     let asyncStateless<'M> (onMessage: ICell<unit, 'M> -> 'M -> Task<Behavior<unit, 'M>>): Behavior<unit, 'M> =
         asyncImmutable<unit, 'M> () (fun c _ m -> onMessage c m)
+
+    let inline become state behavior = Receive(state, behavior, defaultSignal)
 
     let internal undefer cell =
         function

@@ -6,17 +6,18 @@
 // -----------------------------------------------------------------------
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using Tachyon.Actors;
 
 namespace Tachyon.Core
 {
-    public struct HashedConcurrentDictionary
+    public struct HashedConcurrentDictionary : IEnumerable<KeyValuePair<string, ICell>>
     {
         private const int HashSize = 1024;
         private readonly Partition[] _partitions;
 
-        public HashedConcurrentDictionary(IEnumerable<Tuple<string, IAddressable>> init)
+        public HashedConcurrentDictionary(IEnumerable<Tuple<string, ICell>> init)
         {
             _partitions = new Partition[HashSize];
             for (var i = 0; i < _partitions.Length; i++)
@@ -40,7 +41,7 @@ namespace Tachyon.Core
             return p;
         }
 
-        public bool TryAdd(string key, IAddressable reff)
+        public bool TryAdd(string key, ICell cell)
         {
             var p = GetPartition(key);
             lock (p)
@@ -49,17 +50,17 @@ namespace Tachyon.Core
                 {
                     return false;
                 }
-                p.Add(key, reff);
+                p.Add(key, cell);
                 return true;
             }
         }
 
-        public bool TryGetValue(string key, out IAddressable aref)
+        public bool TryGetValue(string key, out ICell cell)
         {
             var p = GetPartition(key);
             lock (p)
             {
-                return p.TryGetValue(key, out aref);
+                return p.TryGetValue(key, out cell);
             }
         }
 
@@ -72,6 +73,22 @@ namespace Tachyon.Core
             }
         }
 
-        public sealed class Partition : Dictionary<string, IAddressable> { }
+        public sealed class Partition : Dictionary<string, ICell> { }
+
+        public IEnumerator<KeyValuePair<string, ICell>> GetEnumerator()
+        {
+            foreach (var partition in _partitions)
+            {
+                foreach (KeyValuePair<string, ICell> pair in partition)
+                {
+                    yield return pair;
+                }
+            }
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
     }
 }

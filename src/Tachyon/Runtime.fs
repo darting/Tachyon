@@ -70,26 +70,22 @@ module internal CellConstants =
     let Busy = 2
 
     [<Literal>]
-    let Throughtput = 100
-
-
+    let Throughtput = 128
+    
 [<Sealed>]
-type internal LocalRef<'S, 'M > (cell: Cell<'S,'M>) =
+type internal LocalRef<'S, 'M > (pid: ActorId, cell: Cell<'S,'M>) =
+    member this.ActorId = pid
     interface IRef<'M> with
         member this.Send(message: 'M): unit = cell.PostMessage (message)
         member this.Send(signal: ISignal): unit = cell.PostSignal (signal)
 
-and [<Sealed>] internal Cell<'S,'M> (runtime: IActorRuntime, signals: BoundedQueue<ISignal>, messages: UnboundedQueue<'M>, init:Behavior<'S,'M>) as this =
+and [<Sealed>] internal Cell<'S,'M> (runtime: IActorRuntime, signals: BoundedQueue, messages: UnboundedQueue<'M>, pid: ActorId, init:Behavior<'S,'M>) as this =
     let mutable status = 0
     let mutable current = Unchecked.defaultof<Behavior<'S,'M>>
-    let mutable self = LocalRef(this)
+    let mutable self = LocalRef(pid, this)
     do
         Interlocked.Exchange(&status, CellConstants.Idle) |> ignore
-        current <-
-            match init with
-            | Deferred (callback) -> callback(this)
-            | other -> other
-
+        current <- Actor.undefer this init
     let handleNext next msgOrSig = 
         match next with
         | Unhandled -> runtime.DeadLetter msgOrSig
@@ -166,15 +162,17 @@ and [<Sealed>] internal Cell<'S,'M> (runtime: IActorRuntime, signals: BoundedQue
 
     member this.PostMessage(message: 'M): unit = 
         if messages.TryPush(message) then schedule execute
+    member this.Self: IRef<'M> = upcast self
     interface ICell<'S,'M> with
         member this.Runtime = runtime
-        member this.Self = upcast self
-        member this.Spawn(behavior) = runtime.Spawn(behavior)
+        member this.Self = this.Self
+        member this.Spawn(behavior, name) = runtime.Spawn(behavior, name)
     interface IAsyncDisposable with
         member this.Dispose(): unit = 
             raise (System.NotImplementedException())
         member this.DisposeAsync(token: CancellationToken): Task = 
             raise (System.NotImplementedException())
+    interface ICell
             
 [<Sealed>]
 type ActorTaskScheduler() =
@@ -182,18 +180,33 @@ type ActorTaskScheduler() =
     interface IScheduler with
         member this.ScheduleTask(fn: unit -> Task): unit = Task.Run(Func<Task>(fn), CancellationToken.None) |> ignore
 
-and [<Sealed>] internal ActorRuntime() as this =
+and [<Sealed>] ActorRuntime private() =
     let timer: ITimer = upcast new DefaultTimer()
     let scheduler: IScheduler = upcast ActorTaskScheduler()
     let actors = HashedConcurrentDictionary(null)
-    member this.DisposeAsync(token: CancellationToken) =
+    static member Start(): IActorRuntime = upcast new ActorRuntime()
+    member this.DisposeAsync(token: CancellationToken): Task = upcast task {
+        let disposables =
+            actors 
+            |> Seq.map (fun p -> p.Value)
+            |> Seq.map (disposeAsync token)
+            |> Seq.toArray
+        do! Task.WhenAll(disposables)
         timer.Dispose()
-        Tasks.Task.CompletedTask
+    }
     interface IActorRuntime with
         member this.Dispose() = this.DisposeAsync(CancellationToken.None).Wait 10000 |> ignore
         member this.DisposeAsync(token) = this.DisposeAsync(token)
         member this.Scheduler = scheduler
-        member this.Spawn(behavior) = failwith "NotImplemented"
         member this.Timer = timer
         member this.DeadLetter(msg) = printfn "DeadLetter: %A" msg
-    
+        member this.Spawn<'S,'M>(behavior: Behavior<'S,'M>, name: string) = 
+            let signals = BoundedQueue(CellConstants.Throughtput)
+            let messages = UnboundedQueue()
+            let pid = Murmur.Hash(name)
+            let cell = new Cell<'S,'M>(this, signals, messages, pid, behavior)
+            if actors.TryAdd(name, cell)
+            then
+                cell.Self.Send(Activated)
+                cell.Self
+            else failwith "Actor already exists"

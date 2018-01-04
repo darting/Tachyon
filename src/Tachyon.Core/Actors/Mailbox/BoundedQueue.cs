@@ -31,7 +31,7 @@ using System.Threading;
 namespace Tachyon.Actors.Mailbox
 {
     [StructLayout(LayoutKind.Explicit, Size = 192, CharSet = CharSet.Ansi)]
-    public sealed class BoundedQueue<T> : IMailboxQueue<T> where T : class
+    public sealed class BoundedQueue : IMailboxQueue<ISignal>
     {
         [FieldOffset(0)]
         private readonly Cell[] buffer;
@@ -62,7 +62,7 @@ namespace Tachyon.Actors.Mailbox
             dequeuePos = 0;
         }
 
-        public bool TryPush(T item)
+        public bool TryPush(ISignal item)
         {
             do
             {
@@ -84,7 +84,7 @@ namespace Tachyon.Actors.Mailbox
             } while (true);
         }
 
-        public bool TryPop(out T result)
+        public bool TryPop(out ISignal result)
         {
             do
             {
@@ -114,9 +114,9 @@ namespace Tachyon.Actors.Mailbox
             [FieldOffset(0)]
             public int Sequence;
             [FieldOffset(8)]
-            public T Element;
+            public ISignal Element;
 
-            public Cell(int sequence, T element)
+            public Cell(int sequence, ISignal element)
             {
                 Sequence = sequence;
                 Element = element;
