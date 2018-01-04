@@ -15,7 +15,7 @@ namespace Tachyon.Actors.Mailbox
         private readonly ConcurrentQueue<T> inner = new ConcurrentQueue<T>();
 
         public bool HasMessages => !inner.IsEmpty;
-        public bool TryPush(ref T message)
+        public bool TryPush(T message)
         {
             inner.Enqueue(message);
             return true;

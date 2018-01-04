@@ -58,7 +58,7 @@ type internal DefaultTimer() =
                 disposables.Clear()
 
 [<RequireQualifiedAccess>]
-module internal CellStatus =
+module internal CellConstants =
     
     [<Literal>] 
     let Uninitialized = 0
@@ -68,6 +68,9 @@ module internal CellStatus =
     
     [<Literal>] 
     let Busy = 2
+
+    [<Literal>]
+    let Throughtput = 100
 
 
 [<Sealed>]
@@ -81,21 +84,88 @@ and [<Sealed>] internal Cell<'S,'M> (runtime: IActorRuntime, signals: BoundedQue
     let mutable current = Unchecked.defaultof<Behavior<'S,'M>>
     let mutable self = LocalRef(this)
     do
-        Interlocked.Exchange(&status, CellStatus.Idle) |> ignore
+        Interlocked.Exchange(&status, CellConstants.Idle) |> ignore
         current <-
             match init with
             | Deferred (callback) -> callback(this)
             | other -> other
-    member this.RunAsync (): Task = upcast Task.FromResult()
-    member this.PostSignal(signal: ISignal): unit = 
-        if signals.TryPush(&signal)
-        then
-            runtime.Scheduler.ScheduleTask(this.RunAsync)
 
-    member this.PostMessage(message: 'M) = 
-        if messages.TryPush(message)
+    let handleNext next msgOrSig = 
+        match next with
+        | Unhandled -> runtime.DeadLetter msgOrSig
+        | Same -> ()
+        | Receive _ -> current <- next
+        | Deferred _ -> failwith "Deferred can be used only at start"
+
+    let executeSignal (signal: ISignal): Task = 
+        let nextTask = 
+            match current with
+            | Receive(state, _, handle) -> handle this state signal
+            | _ -> failwithf "Cannot receive messages using %s" (string current)
+        if nextTask.IsCompletedSuccessfully
+        then 
+            let next = nextTask.Result
+            handleNext next signal
+            Task.CompletedTask
+        else upcast task {
+            let! next = nextTask.AsTask()
+            handleNext next signal
+        }        
+        
+    let executeMessage (msg: 'M): Task = 
+        let nextTask = 
+            match current with
+            | Receive(state, handle, _) -> handle this state msg
+            | _ -> failwithf "Cannot receive messages using %s" (string current)
+        if nextTask.IsCompletedSuccessfully
+        then 
+            let next = nextTask.Result
+            handleNext next msg
+            Task.CompletedTask
+        else upcast task {
+            let! next = nextTask.AsTask()
+            handleNext next msg
+        }
+
+    let schedule fn = 
+        if Interlocked.CompareExchange(&status, CellConstants.Busy, CellConstants.Idle) = CellConstants.Idle
+        then runtime.Scheduler.ScheduleTask fn
+
+    let rec execute(): Task =
+        let reshedule: Action<Task,obj> = Action<Task,obj>(fun t msgOrSig -> schedule execute)
+        let rec exec i =
+            match signals.TryPop() with
+            | true, signal ->
+                let t = executeSignal signal
+                if not t.IsCompleted 
+                then 
+                    t.ContinueWith(reshedule, box signal) |> ignore
+                    false
+                else exec (i-1)
+            | false, _ -> 
+                match messages.TryPop() with
+                | true, msg -> 
+                    let t = executeMessage msg
+                    if not t.IsCompleted 
+                    then 
+                        t.ContinueWith(reshedule, box msg) |> ignore
+                        false
+                    else exec (i-1)
+                | false, _  -> true
+        let finished = exec CellConstants.Throughtput
+        if finished
         then
-            runtime.Scheduler.ScheduleTask(this.RunAsync)
+            Interlocked.Exchange(&status, CellConstants.Idle) |> ignore
+            if signals.HasMessages && messages.HasMessages
+            then
+                schedule execute
+        Task.CompletedTask
+
+    member this.PostSignal(signal: ISignal): unit = 
+        if signals.TryPush(signal) then schedule execute
+
+    member this.PostMessage(message: 'M): unit = 
+        if messages.TryPush(message) then schedule execute
     interface ICell<'S,'M> with
         member this.Runtime = runtime
         member this.Self = upcast self
@@ -125,4 +195,5 @@ and [<Sealed>] internal ActorRuntime() as this =
         member this.Scheduler = scheduler
         member this.Spawn(behavior) = failwith "NotImplemented"
         member this.Timer = timer
+        member this.DeadLetter(msg) = printfn "DeadLetter: %A" msg
     

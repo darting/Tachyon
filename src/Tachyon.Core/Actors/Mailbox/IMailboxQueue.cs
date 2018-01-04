@@ -10,7 +10,7 @@ namespace Tachyon.Actors.Mailbox
     public interface IMailboxQueue<T>
     {
         bool HasMessages { get; }
-        bool TryPush(ref T message);
+        bool TryPush(T message);
         bool TryPop(out T message);
     }
 }

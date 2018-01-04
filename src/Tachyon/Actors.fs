@@ -40,6 +40,11 @@ and [<Interface>] IActorRuntime =
     abstract member Scheduler: IScheduler
     abstract member Timer: ITimer
     abstract member Spawn: (Behavior<'S,'M>) -> IRef<'M>
+    abstract member DeadLetter: 'M -> unit
+
+// SIGNALS
+type Activated = Activated interface ISignal
+type Deactivated = Deactivated of exn option interface ISignal
     
 [<RequireQualifiedAccess>]
 module Actor =

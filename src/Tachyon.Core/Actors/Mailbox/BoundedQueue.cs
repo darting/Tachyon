@@ -62,7 +62,7 @@ namespace Tachyon.Actors.Mailbox
             dequeuePos = 0;
         }
 
-        public bool TryPush(ref T item)
+        public bool TryPush(T item)
         {
             do
             {
